@@ -1,40 +1,63 @@
+version: "3.9"
+
 services:
-  # 1. Caching & Streaming Queue Layer
-  finguard-redis:
+  redis:
     image: redis:alpine
-    container_name: finguard-redis
-    command: redis-server --appendonly yes
+    container_name: ledgify_redis
     ports:
       - "6379:6379"
-    volumes:
-      - redis_data:/data
+    networks:
+      - ledgify_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # 2. Relational ACID Financial Ledger
-  finguard-postgres:
-    image: postgres:alpine
-    container_name: finguard-postgres
+  postgres:
+    image: postgres:15-alpine
+    container_name: ledgify_postgres
     environment:
-      POSTGRES_USER: finguard_stream
-      POSTGRES_PASSWORD: finguard
-      POSTGRES_DB: transaction_ledger_db
+      POSTGRES_DB: ledgify_db
+      POSTGRES_USER: ledgify_admin
+      POSTGRES_PASSWORD: ledgify
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - ledgify_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledgify_admin -d ledgify_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # 3. Document-Store Audit Trail Layer
-  finguard-mongodb:
-    image: mongo:latest
-    container_name: finguard-mongodb
+  mongodb:
+    image: mongo:6
+    container_name: ledgify_mongo
     environment:
-      MONGO_INITDB_ROOT_USERNAME: finguard_db
-      MONGO_INITDB_ROOT_PASSWORD: finguardstream
+      MONGO_INITDB_ROOT_USERNAME: ledgify_doc_admin
+      MONGO_INITDB_ROOT_PASSWORD: ledgify
     ports:
       - "27017:27017"
     volumes:
-      - mongodb_data:/data/db
+      - mongodata:/data/db
+    networks:
+      - ledgify_net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
-  redis_data:
-  postgres_data:
-  mongodb_data:
+  pgdata:
+  mongodata:
+
+networks:
+  ledgify_net:
+    driver: bridge

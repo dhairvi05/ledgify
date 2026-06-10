@@ -1,63 +1,165 @@
-from fastapi import FastAPI, Depends, HTTPException
+"""
+backend/main.py
+---------------
+FastAPI REST layer for Ledgify.
+
+Endpoints
+---------
+GET /api/ledger
+    Returns the latest 30 transactions from PostgreSQL, sorted newest-first.
+
+GET /api/alerts
+    Returns the latest 15 AI forensic compliance records from MongoDB,
+    sorted descending by audit date.
+
+GET /health
+    Simple liveness check – useful for container health probes.
+"""
+
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pymongo import MongoClient, DESCENDING
 from sqlalchemy.orm import Session
-from pymongo import MongoClient
-from typing import List, Dict, Any
 
-# Import our PostgreSQL configuration setup
-from config.db_setup import SessionLocal, TransactionLedger
+# ---------------------------------------------------------------------------
+# Project root on path
+# ---------------------------------------------------------------------------
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
-app = FastAPI(title="FinGuard Stream Operational Gateway", version="1.0")
+from config.db_config import (  # noqa: E402
+    MONGO_URI,
+    TransactionLedger,
+    get_db,
+    init_db,
+)
 
-# --- Database Dependency Helpers ---
-def get_db():
-    """Yields a relational database session for a single API request."""
-    db = SessionLocal()
+# ---------------------------------------------------------------------------
+# Application factory
+# ---------------------------------------------------------------------------
+
+app = FastAPI(
+    title="Ledgify API",
+    description=(
+        "High-throughput financial fraud monitoring pipeline. "
+        "Exposes real-time transaction ledger and AI-powered compliance alerts."
+    ),
+    version="1.0.0",
+)
+
+# Allow the Streamlit dashboard (running on a different port) to call the API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ---------------------------------------------------------------------------
+# MongoDB client (module-level – shared across requests)
+# ---------------------------------------------------------------------------
+
+MONGO_DB_NAME = "compliance_audit_db"
+MONGO_COLLECTION = "ai_forensic_logs"
+
+_mongo_client: MongoClient | None = None
+
+
+def get_mongo_collection():
+    """Lazy-initialised MongoDB collection accessor."""
+    global _mongo_client
+    if _mongo_client is None:
+        _mongo_client = MongoClient(MONGO_URI)
+    return _mongo_client[MONGO_DB_NAME][MONGO_COLLECTION]
+
+
+# ---------------------------------------------------------------------------
+# Startup event: initialise PostgreSQL schema
+# ---------------------------------------------------------------------------
+
+@app.on_event("startup")
+def on_startup() -> None:
+    init_db()
+    print("[main.py] PostgreSQL schema ready.")
+
+
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+
+@app.get("/health", tags=["System"])
+def health_check() -> dict:
+    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+
+
+# ---------------------------------------------------------------------------
+# GET /api/ledger
+# ---------------------------------------------------------------------------
+
+@app.get("/api/ledger", tags=["Transactions"])
+def get_ledger(db: Session = Depends(get_db)) -> list[dict]:
+    """
+    Return the 30 most recently ingested transactions from PostgreSQL,
+    ordered newest-first.
+
+    Each record includes: id, transaction_id, user_id, amount, currency,
+    merchant_type, location, timestamp (ISO-8601), and status.
+    """
     try:
-        yield db
-    finally:
-        db.close()
+        rows = (
+            db.query(TransactionLedger)
+            .order_by(TransactionLedger.timestamp.desc())
+            .limit(30)
+            .all()
+        )
+        return [row.to_dict() for row in rows]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-# Initialize MongoDB Client connection
-mongo_client = MongoClient("mongodb://finguard_db:finguardstream@localhost:27017/")
-mongo_db = mongo_client["compliance_audit_db"]
-audit_collection = mongo_db["ai_audit_logs"]
 
-# --- API Endpoints ---
+# ---------------------------------------------------------------------------
+# GET /api/alerts
+# ---------------------------------------------------------------------------
 
-@app.get("/")
-def read_root():
-    return {"status": "ONLINE", "system": "FinGuard Real-Time Core"}
+def _serialise_mongo_doc(doc: dict) -> dict[str, Any]:
+    """
+    Convert a raw MongoDB document into a JSON-serialisable dict.
 
-@app.get("/api/transactions", response_model=List[Dict[str, Any]])
-def get_recent_transactions(limit: int = 20, db: Session = Depends(get_db)):
-    """Fetches the latest settled transactions directly from the PostgreSQL Ledger."""
-    transactions = db.query(TransactionLedger).order_by(TransactionLedger.id.desc()).limit(limit).all()
-    
-    # Format database models into clean JSON dictionaries
-    return [
-        {
-            "id": tx.id,
-            "transaction_id": tx.transaction_id,
-            "user_id": tx.user_id,
-            "amount": tx.amount,
-            "currency": tx.currency,
-            "merchant_type": tx.merchant_type,
-            "location": tx.location,
-            "status": tx.status
-        }
-        for tx in transactions
-    ]
+    - Removes the BSON ObjectId (_id) from the response.
+    - Converts datetime fields to ISO-8601 strings.
+    """
+    doc.pop("_id", None)
 
-@app.get("/api/compliance/alerts", response_model=List[Dict[str, Any]])
-def get_ai_audit_logs(limit: int = 10):
-    """Fetches unstructured local GenAI forensic fraud analysis logs from MongoDB."""
+    for key, value in doc.items():
+        if isinstance(value, datetime):
+            doc[key] = value.isoformat()
+
+    return doc
+
+
+@app.get("/api/alerts", tags=["Compliance Alerts"])
+def get_alerts() -> list[dict[str, Any]]:
+    """
+    Return the 15 most recent AI forensic compliance records from MongoDB,
+    sorted descending by the 'audited_at' timestamp.
+
+    Each document includes the original transaction fields plus the
+    structured AI report fields: risk_rating, threat_typology,
+    narrative_rationale, enforcement_action, and the raw_ai_output text.
+    """
     try:
-        # Fetch the latest logs, excluding the internal MongoDB '_id' field for clean parsing
-        logs = list(audit_collection.find({}, {"_id": 0}).sort("audited_at", -1).limit(limit))
-        return logs
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database read error: {e}")
-
-@app.on_event("shutdown")
-def shutdown_db_client():
-    mongo_client.close()
+        collection = get_mongo_collection()
+        cursor = (
+            collection.find({})
+            .sort("audited_at", DESCENDING)
+            .limit(15)
+        )
+        return [_serialise_mongo_doc(doc) for doc in cursor]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
