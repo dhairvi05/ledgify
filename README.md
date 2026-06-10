@@ -1,73 +1,60 @@
 <h1 align="center">🌀 Ledgify - Distributed Systems and GenAI Compliance Pipeline</h1>
 
-A Python-based application that **generates traditional Kolam designs using coordinate geometry** and provides an **interactive step-by-step learning mode** to understand how Kolam patterns are drawn.
+A distributed, edge-native financial fraud monitoring pipeline that **ingests high-throughput transactions in real-time** and provides an **asynchronous, air-gapped forensic audit trail using localized GenAI**.
 
-This project blends **art, mathematics, and programming** and is fully **deployed** for public access.
+This project blends **high-performance backend infrastructure, advanced database design, and local retrieval-augmented generation (RAG)** to secure financial transactions against real-time threats.
 
 ---
 
 ## ✨ Features
 
-* **Kolam Generation**
+* **High-Throughput Ingestion & Queuing**
+  * Captures incoming transaction payloads instantly via Redis Streams using Consumer Groups
+  * Decouples the primary API ingestion layer to maintain sub-second response times and prevent choking during traffic spikes
 
-  * Generates Kolam designs using predefined and computed coordinate points
-  * Maintains symmetry and traditional Kolam structure
-  * User can determine size of grid and kolam size
-  * Kolam can be saved as png or jpg
+* **Polyglot Persistence Ledgering**
+  * Enforces strict ACID compliance by committing transactional data to PostgreSQL
+  * Uses database row-level locking to completely mitigate double-spending and race conditions
+  * Offloads bloated metadata, system logs, and full JSON audit profiles into MongoDB for cold, scalable historical archiving
 
-* **Learn Kolam (Step-by-Step Mode)**
-
-  * Visualizes Kolam drawing incrementally
-  * Each step is displayed sequentially for better understanding
-  * Beginner-friendly learning approach
-
-* **Coordinate-Based Design Logic**
-
-  * Uses Cartesian coordinates for pattern construction
-  * Ensures scalable and reproducible designs
-
----
-
-## 🔗Links
-
-* GitHub Repository
-* [Kolam Generator Demo](rhythm-git-main-dhairvi-sanganis-projects.vercel.app)
+* **In-Memory Contextual RAG & Air-Gapped AI Auditing**
+  * Queries historical transaction velocity profiles from PostgreSQL to build active user baselines on the fly
+  * Injects specific user behavior metrics directly into a localized Ollama (Llama3) LLM context window
+  * Generates instant forensic risk evaluation reports (Risk Rating, Threat Typology, Narrative Rationale) entirely within internal system memory—ensuring sensitive financial data never leaves localhost
 
 ---
 
 ## 🛠 Tech Stack
 
-* Client (Frontend)  
+* Client (Monitoring Interface)  
+![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=Streamlit&logoColor=white)
+![Pandas](https://img.shields.io/badge/pandas-%23150458.style=for-the-badge&logo=pandas&logoColor=white)
 
-![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB)
+* Message Broker & Caching  
+![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)
 
-![CSS3](https://img.shields.io/badge/css3-%231572B6.svg?style=for-the-badge&logo=css3&logoColor=white)
-
-![Canvas API](https://img.shields.io/badge/Canvas_API-000000?style=for-the-badge&logo=html5&logoColor=white)
-
-* Server (Backend)
-
+* Server & AI Engine  
 ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
-
 ![FastAPI](https://img.shields.io/badge/FastAPI-05998b?style=for-the-badge&logo=fastapi&logoColor=white)
+![Ollama (Llama3)](https://img.shields.io/badge/Ollama-000000?style=for-the-badge&logo=ollama&logoColor=white)
 
-* Deployment
+* Polyglot Databases  
+![PostgreSQL](https://img.shields.io/badge/postgresql-%23336791.svg?style=for-the-badge&logo=postgresql&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-%234aa657.svg?style=for-the-badge&logo=mongodb&logoColor=white)
 
-Frontend
+* Containerization  
+![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
 
-![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)
-
-Backend
-
-![Render](https://img.shields.io/badge/Render-46E3B7?style=for-the-badge&logo=render&logoColor=white)
 ---
 
 ## 📌 Project Workflow
 
-1. Define coordinate points based on Kolam symmetry rules
-2. Plot curves and loops using mathematical logic
-3. Render full Kolam design
-4. In learning mode, render each step with time-based visualization
+1. **Ingest:** Transaction payloads are written directly to the primary Redis Stream topic.
+2. **Route:** Ingestion workers consume messages, committing entries below a $5,000 threshold straight to PostgreSQL as `SETTLED`.
+3. **Flag:** Transactions exceeding threshold limits or failing geographical velocity rules are marked as `FLAGGED` and cloned onto a secondary compliance stream.
+4. **Retrieve (RAG):** The AI worker fetches the user's last 10 transactions from PostgreSQL to build a localized context baseline.
+5. **Audit:** The context window is fed to a local Ollama model to generate structured forensic audit profiles.
+6. **Archive:** The final combined JSON analysis is permanently persisted in MongoDB and updated in real-time on the monitoring interface.
 
 ---
 
@@ -75,49 +62,5 @@ Backend
 
 1. Clone the repository:
 ```bash
-git clone git@github.com:your-username/your-repo-name.git 
-```
-
-2. To start the frontend:
-```bash
-cd frontend
-npm install
-npm run dev 
-```
-
-3. To start the backend:
-```bash
-pip install -r requirements.txt
-python -m uvicorn main:app --reload   
-```
-
----
-
-## 💻 Usage
-
-* **Explore:** Access the home page to start generating patterns.
-
-* **Design:** Use the "Auto Generate" button or draw manually to create your unique Kolam.
-
-* **Learn:** Engage with the learning mode to see the step-by-step construction of the design.
-
-* **Customize:** Toggle symmetry buttons (Vertical, Horizontal, Diagonal) to experiment with different patterns.
-
-* **Save:** Once satisfied, click "Download PNG" to export your work.
-
----
-
-## 📱 Screenshots
-
-* A glimpse at our project: 
-
-<img src="frontend/src/assets/home.png" width="600" />
-
-<img src="frontend/src/assets/generator.png" width="600" />
-
-<img src="frontend/src/assets/beforedraw.png" width="600" />
-
-<img src="frontend/src/assets/afterdraw.png" width="600" />
-
-<img src="frontend/src/assets/final.png" width="600" />
-
+git clone git@github.com:your-username/ledgify.git
+cd ledgify
