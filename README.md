@@ -106,6 +106,6 @@ streamlit run backend/dashboard.py
 
 * A glimpse at my project: 
 
-<img src="assets/clean.png" width="600" />
+<img src="/assets/clean.png" width="600" />
 
-<img src="assets/not-clean.png" width="600" />
+<img src="/assets/not-clean.png" width="600" />
