@@ -28,7 +28,7 @@ This project blends **high-performance backend infrastructure, advanced database
 
 * Client (Monitoring Interface)  
 ![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=Streamlit&logoColor=white)
-![Pandas](https://img.shields.io/badge/pandas-%23150458.style=for-the-badge&logo=pandas&logoColor=white)
+* Pandas
 
 * Message Broker & Caching  
 ![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)
