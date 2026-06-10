@@ -62,5 +62,40 @@ This project blends **high-performance backend infrastructure, advanced database
 
 1. Clone the repository:
 ```bash
-git clone git@github.com:your-username/ledgify.git
-cd ledgify
+https://github.com/dhairvi05/ledgify.git
+```
+
+2. To start Docker:
+```bash
+docker compose up -d
+```
+
+3. To install Python deps:
+```bash
+pip install -r requirements.txt  
+```
+
+4. To start API server:
+```bash
+uvicorn backend.main:app --reload --port 8000
+```
+
+5. To start ingestion worker (terminal 2):
+```bash
+python workers/ingestion_worker.py
+```
+
+6. To start AI compliance worker (terminal 3) – requires Ollama + llama3:
+```bash
+python workers/compliance_ai_worker.py
+```
+
+7. To start stream generator (terminal 4):
+```bash
+python scripts/stream_generator.py
+```
+
+8. To launch dashboard (terminal 5):
+```bash
+streamlit run backend/dashboard.py
+```
